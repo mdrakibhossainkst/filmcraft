@@ -165,7 +165,7 @@ fn main() -> eframe::Result {
 
 /// The main window's options; built for each start attempt (they hold a one-shot hook).
 fn native_options(agent: bool) -> eframe::NativeOptions {
-    eframe::NativeOptions {
+    let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("FilmCraft")
             .with_inner_size([1600.0, 980.0])
@@ -181,7 +181,23 @@ fn native_options(agent: bool) -> eframe::NativeOptions {
             .with_app_id(APP_ID),
         event_loop_builder: agent_event_loop(agent),
         ..Default::default()
+    };
+
+    // Older Intel Macs can crash or lose the WGPU device while Metal compiles
+    // indirect-call validation shaders. Disable only this validation flag on
+    // Intel macOS; other platforms retain their default settings.
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    if let eframe::egui_wgpu::WgpuSetup::CreateNew(create) =
+        &mut options.wgpu_options.wgpu_setup
+    {
+        create.instance_descriptor.flags = create
+            .instance_descriptor
+            .flags
+            .difference(eframe::wgpu::InstanceFlags::VALIDATION_INDIRECT_CALL)
+            .with_env();
     }
+
+    options
 }
 
 /// Creates the app once eframe has its window and graphics device; sets `created` when it runs,
